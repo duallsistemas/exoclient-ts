@@ -1,0 +1,51 @@
+{
+  "name": "@duallsistemas/exoclient-ts",
+  "description": "TypeScript client for Exoprotocol.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "Silvio Clecio <silvioprog@gmail.com> (silvioprog)",
+  "bugs": {
+    "url": "https://github.com/duallsistemas/exoclient-ts/issues"
+  },
+  "homepage": "https://github.com/duallsistemas/exoclient-ts#readme",
+  "module": "dist/exoclient-ts.esm.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duallsistemas/exoclient-ts.git"
+  },
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "start": "tsdx watch",
+    "dist": "tsdx build",
+    "lint": "tsdx lint",
+    "prepare": "tsdx build",
+    "clean": "npx jest --clearCache"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "tsdx lint"
+    }
+  },
+  "prettier": {
+    "printWidth": 120,
+    "semi": true,
+    "singleQuote": true,
+    "trailingComma": "es5"
+  },
+  "devDependencies": {
+    "husky": "^5.1.3",
+    "tsdx": "^0.14.1",
+    "tslib": "^2.1.0",
+    "typescript": "^4.2.3"
+  },
+  "directories": {},
+  "dependencies": {}
+}
