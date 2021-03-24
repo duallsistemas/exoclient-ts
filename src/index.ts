@@ -6,17 +6,6 @@ export interface ExoConfiguration {
   token?: string;
 }
 
-let exoGlobalConfig: ExoConfiguration;
-
-export function exoGetConfiguration(): ExoConfiguration {
-  return exoGlobalConfig;
-}
-
-export function exoSetConfiguration(url: string, token?: string, params?: Record<string, string>[]): ExoConfiguration {
-  exoGlobalConfig = { url, token, params };
-  return exoGlobalConfig;
-}
-
 export enum ExoOperation {
   Insert = 'insert',
   Update = 'update',
@@ -115,34 +104,32 @@ export interface ExoError {
 
 export type ExoRequestData<T> = ExoQuery | ExoCommand<T>;
 
-export async function exoRequest<T>(
+function formatURL(configuration: ExoConfiguration, path: string): string {
+  return (
+    configuration.url +
+    path +
+    (!!configuration.params && configuration.params.length > 0
+      ? '?' + configuration.params.map(item => `${item.name}=${item.value}`).join('&')
+      : '')
+  );
+}
+
+async function exoRequest<T>(
+  configuration: ExoConfiguration,
   path: string,
-  data: ExoRequestData<T>,
-  configuration: ExoConfiguration = exoGlobalConfig
+  data: ExoRequestData<T>
 ): Promise<ExoResponse<T>> {
-  if (!configuration) return Promise.reject('Missing configuration');
-  let headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
+  let headers: HeadersInit = { 'Content-Type': 'application/json' };
   if (configuration.token) headers.Authorization = 'Bearer ' + configuration.token;
   try {
-    const response = await fetch(
-      configuration.url +
-        path +
-        (!!configuration.params && configuration.params.length > 0
-          ? '?' + configuration.params.map((item) => `${item.name}=${item.value}`).join('&')
-          : ''),
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(data),
-      }
-    );
+    const response = await fetch(formatURL(configuration, path), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
     const content = await response.text();
     const json = JSON.parse(content);
-    if (!response.ok) {
-      return Promise.reject(json);
-    }
+    if (!response.ok) return Promise.reject(json);
     return json;
   } catch (error) {
     return Promise.reject({ message: error.message } as ExoError);
@@ -150,71 +137,60 @@ export async function exoRequest<T>(
 }
 
 export function exoRequestQuery<T>(
+  configuration: ExoConfiguration,
   root: string,
   resource: string,
   columns?: string[],
-  options?: ExoQueryOptions,
-  configuration: ExoConfiguration = exoGlobalConfig
+  options?: ExoQueryOptions
 ): Promise<ExoResponse<T>> {
-  return exoRequest<T>(
-    '/_queries',
-    {
-      root,
-      queries: [{ resource, columns, ...options }],
-    },
-    configuration
-  );
+  return exoRequest<T>(configuration, '/_queries', { root, queries: [{ resource, columns, ...options }] });
 }
 
 export async function exoRequestQueryData<T>(
+  configuration: ExoConfiguration,
   root: string,
   resource: string,
   columns?: string[],
-  options?: ExoQueryOptions,
-  configuration: ExoConfiguration = exoGlobalConfig
+  options?: ExoQueryOptions
 ): Promise<T[]> {
-  return await exoRequestQuery<T>(root, resource, columns, options, configuration).then(
-    (response) => response.rows[0].data
+  return await exoRequestQuery<T>(configuration, root, resource, columns, options).then(
+    response => response.rows[0].data
   );
 }
 
 export function exoRequestCommand<T>(
+  configuration: ExoConfiguration,
   root: string,
   resource: string,
   operation: ExoOperation,
   data: T[],
   keys?: string[],
-  returns?: string[],
-  configuration: ExoConfiguration = exoGlobalConfig
+  returns?: string[]
 ): Promise<ExoResponse<T>> {
-  return exoRequest<T>(
-    '/_commands',
-    {
-      root,
-      commands: [
-        {
-          resource,
-          operation,
-          data,
-          keys: keys && keys?.length > 0 ? keys : undefined,
-          returns: returns && returns?.length > 0 ? returns : undefined,
-        },
-      ],
-    },
-    configuration
-  );
+  return exoRequest<T>(configuration, '/_commands', {
+    root,
+    commands: [
+      {
+        resource,
+        operation,
+        data,
+        keys: keys && keys?.length > 0 ? keys : undefined,
+        returns: returns && returns?.length > 0 ? returns : undefined,
+      },
+    ],
+  });
 }
 
 export async function exoRequestCommandData<T>(
+  configuration: ExoConfiguration,
   root: string,
   resource: string,
   operation: ExoOperation,
   data: T[],
   keys?: string[],
-  returns?: string[],
-  configuration: ExoConfiguration = exoGlobalConfig
+  returns?: string[]
 ): Promise<T[]> {
-  return await exoRequestCommand(root, resource, operation, data, keys, returns, configuration).then(
-    (response) => response.rows[0].data
+  return await exoRequestCommand(configuration, root, resource, operation, data, keys, returns).then(
+    response => response.rows[0].data
   );
 }
