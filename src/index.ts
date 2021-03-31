@@ -1,10 +1,8 @@
 /* TODO: Node/Deno support */
 
-export type Params = Record<string, any>[];
-
 export interface Configuration {
   url: string;
-  params?: Params;
+  params?: object;
   token?: string;
 }
 
@@ -106,14 +104,14 @@ export interface ResponseError {
 
 export type RequestData<T> = QueryRequest | CommandRequest<T>;
 
+function extractParams(params?: object): string[] {
+  if (!params) return [];
+  return Object.keys(params).map(key => `${key}=${params[key as keyof object]}`);
+}
+
 function formatURL(configuration: Configuration, path: string): string {
-  return (
-    configuration.url +
-    path +
-    (!!configuration.params && configuration.params.length > 0
-      ? '?' + configuration.params.map(item => Object.keys(item).map(key => `${key}=${item[key]}`)).join('&')
-      : '')
-  );
+  const params = extractParams(configuration.params);
+  return configuration.url + path + (params.length > 0 ? '?' + params.join('&') : '');
 }
 
 export async function request<T>(
