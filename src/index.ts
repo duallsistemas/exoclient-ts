@@ -1,8 +1,10 @@
 /* TODO: Node/Deno support */
 
+export type Params = Record<string, any>[];
+
 export interface Configuration {
   url: string;
-  params?: Record<string, string>[];
+  params?: Params;
   token?: string;
 }
 
@@ -109,7 +111,7 @@ function formatURL(configuration: Configuration, path: string): string {
     configuration.url +
     path +
     (!!configuration.params && configuration.params.length > 0
-      ? '?' + configuration.params.map(item => `${item.name}=${item.value}`).join('&')
+      ? '?' + configuration.params.map(item => Object.keys(item).map(key => `${key}=${item[key]}`)).join('&')
       : '')
   );
 }
