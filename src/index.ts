@@ -1,110 +1,110 @@
 /* TODO: Node/Deno support */
 
-export interface ExoConfiguration {
+export interface Configuration {
   url: string;
   params?: Record<string, string>[];
   token?: string;
 }
 
-export enum ExoOperation {
+export enum Operation {
   Insert = 'insert',
   Update = 'update',
   Upsert = 'upsert',
   Delete = 'delete',
 }
 
-export interface ExoCommandItem<T> {
+export interface Command<T> {
   resource: string;
-  operation: ExoOperation;
+  operation: Operation;
   data: T[];
   keys?: string[];
   returns?: string[];
 }
 
-export interface ExoCommand<T> {
+export interface CommandRequest<T> {
   root: string;
-  commands: ExoCommandItem<T>[];
+  commands: Command<T>[];
   tag?: string;
 }
 
-export interface ExoRangePagination {
+export interface RangePagination {
   page: number;
   pageSize: number;
 }
 
-export interface ExoRangePortion {
+export interface RangePortion {
   limit: number;
   offset: number;
 }
 
-export type ExoRange = ExoRangePagination | ExoRangePortion;
+export type Range = RangePagination | RangePortion;
 
-export interface ExoFilter {
+export interface Filter {
   criteria: string;
   params: any[];
 }
 
-export interface ExoGroup {
+export interface Group {
   columns: string[];
-  filter: ExoFilter;
+  filter: Filter;
 }
 
-export interface ExoQueryOptions {
-  filter?: ExoFilter;
+export interface QueryOptions {
+  filter?: Filter;
   sort?: string[];
-  group?: ExoGroup;
+  group?: Group;
   keys?: string[];
   nested?: boolean;
-  range?: ExoRange;
+  range?: Range;
 }
 
-export interface ExoQueryItem {
+export interface Query {
   resource: string;
   columns?: string[];
-  options?: ExoQueryOptions;
+  options?: QueryOptions;
 }
 
-export interface ExoQuery {
+export interface QueryRequest {
   root: string;
-  queries: ExoQueryItem[];
+  queries: Query[];
   tag?: string;
 }
 
-export interface ExoRangePaginationResult {
+export interface RangePaginationResult {
   page: number;
   pageSize: number;
   pageCount: number;
 }
 
-export interface ExoRangePortionResult {
+export interface RangePortionResult {
   limit: number;
   offset: number;
 }
 
-export type ExoRangeResult = ExoRangePaginationResult | ExoRangePortionResult;
+export type RangeResult = RangePaginationResult | RangePortionResult;
 
-export interface ExoRow<T> {
+export interface Row<T> {
   resource: string;
   data: T[];
-  range?: ExoRangeResult;
+  range?: RangeResult;
 }
 
-export interface ExoResponse<T> {
+export interface Response<T> {
   version: string;
   root: string;
-  rows: ExoRow<T>[];
+  rows: Row<T>[];
   tag?: string;
 }
 
-export interface ExoError {
+export interface ResponseError {
   origin: string;
   message: string;
   note?: string;
 }
 
-export type ExoRequestData<T> = ExoQuery | ExoCommand<T>;
+export type RequestData<T> = QueryRequest | CommandRequest<T>;
 
-function formatURL(configuration: ExoConfiguration, path: string): string {
+function formatURL(configuration: Configuration, path: string): string {
   return (
     configuration.url +
     path +
@@ -114,11 +114,11 @@ function formatURL(configuration: ExoConfiguration, path: string): string {
   );
 }
 
-async function exoRequest<T>(
-  configuration: ExoConfiguration,
+export async function request<T>(
+  configuration: Configuration,
   path: string,
-  data: ExoRequestData<T>
-): Promise<ExoResponse<T>> {
+  data: RequestData<T>
+): Promise<Response<T>> {
   let headers: HeadersInit = { 'Content-Type': 'application/json' };
   if (configuration.token) headers.Authorization = 'Bearer ' + configuration.token;
   try {
@@ -132,65 +132,72 @@ async function exoRequest<T>(
     if (!response.ok) return Promise.reject(json);
     return json;
   } catch (error) {
-    return Promise.reject({ message: error.message } as ExoError);
+    return Promise.reject({ message: error.message } as ResponseError);
   }
 }
 
-export function exoRequestQuery<T>(
-  configuration: ExoConfiguration,
+export function requestQueries<T>(configuration: Configuration, root: string, queries: Query[]): Promise<Response<T>> {
+  return request<T>(configuration, '/_queries', { root, queries });
+}
+
+export function requestQuery<T>(
+  configuration: Configuration,
   root: string,
   resource: string,
   columns?: string[],
-  options?: ExoQueryOptions
-): Promise<ExoResponse<T>> {
-  return exoRequest<T>(configuration, '/_queries', { root, queries: [{ resource, columns, ...options }] });
+  options?: QueryOptions
+): Promise<Response<T>> {
+  return requestQueries<T>(configuration, root, [{ resource, columns, ...options }]);
 }
 
-export async function exoRequestQueryData<T>(
-  configuration: ExoConfiguration,
+export async function requestQueryData<T>(
+  configuration: Configuration,
   root: string,
   resource: string,
   columns?: string[],
-  options?: ExoQueryOptions
+  options?: QueryOptions
 ): Promise<T[]> {
-  return await exoRequestQuery<T>(configuration, root, resource, columns, options).then(
-    response => response.rows[0].data
-  );
+  return await requestQuery<T>(configuration, root, resource, columns, options).then(response => response.rows[0].data);
 }
 
-export function exoRequestCommand<T>(
-  configuration: ExoConfiguration,
+export function requestCommands<T>(
+  configuration: Configuration,
+  root: string,
+  commands: Command<T>[]
+): Promise<Response<T>> {
+  return request<T>(configuration, '/_commands', { root, commands });
+}
+
+export function requestCommand<T>(
+  configuration: Configuration,
   root: string,
   resource: string,
-  operation: ExoOperation,
+  operation: Operation,
   data: T[],
   keys?: string[],
   returns?: string[]
-): Promise<ExoResponse<T>> {
-  return exoRequest<T>(configuration, '/_commands', {
-    root,
-    commands: [
-      {
-        resource,
-        operation,
-        data,
-        keys: keys && keys?.length > 0 ? keys : undefined,
-        returns: returns && returns?.length > 0 ? returns : undefined,
-      },
-    ],
-  });
+): Promise<Response<T>> {
+  return requestCommands<T>(configuration, root, [
+    {
+      resource,
+      operation,
+      data,
+      keys: keys && keys?.length > 0 ? keys : undefined,
+      returns: returns && returns?.length > 0 ? returns : undefined,
+    },
+  ]);
 }
 
-export async function exoRequestCommandData<T>(
-  configuration: ExoConfiguration,
+export async function requestCommandData<T>(
+  configuration: Configuration,
   root: string,
   resource: string,
-  operation: ExoOperation,
+  operation: Operation,
   data: T[],
   keys?: string[],
   returns?: string[]
 ): Promise<T[]> {
-  return await exoRequestCommand(configuration, root, resource, operation, data, keys, returns).then(
+  return await requestCommand(configuration, root, resource, operation, data, keys, returns).then(
     response => response.rows[0].data
   );
 }
